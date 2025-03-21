@@ -1,16 +1,27 @@
-// *** Import Models
-const User = require("../models").User;
-const UserOTP = require("../models").UserOTP;
-// *** Import Helpers
-const { hashPassword, comparePassword } = require("../utils/authHelper");
-const OTPSender = require("../utils/mailSendHandler");
 // *** Third Party Packages
 const createHttpError = require("http-errors");
 const otpGenerator = require('otp-generator');
 const JWT = require('jsonwebtoken');
 
+// *** Import Models
+const User = require("../models").User;
+const UserOTP = require("../models").UserOTP;
+
+// *** Import Helpers
+const { hashPassword, comparePassword } = require("../utils/authHelper");
+const OTPSender = require("../utils/mailSendHandler");
+const checkUserLocation = require("../utils/unauthorisedCountry");
+
 const createUser = async (req, res, next) => {
     try {
+
+        const isUSerrestricted = await checkUserLocation();
+
+        if (isUSerrestricted) {
+            const error = createHttpError(400, "Your country is restricted!!!");
+            return next(error);
+        }
+
         const { name, email, password } = req.body;
 
         // *** Validation
@@ -85,6 +96,17 @@ const verifyUser = async (req, res, next) => {
             return next(error);
         }
 
+        // TODO: Marked user as verified
+        const verifyUser = User.update(
+            { verified: true },
+            { where: { email } }
+        )
+
+        if (!verifyUser) {
+            const error = createHttpError(400, "Failed to verify user");
+            return next(error);
+        }
+
         // TODO: Generate Token 
         const user = await User.findOne({ where: { email } });
 
@@ -118,7 +140,7 @@ const login = async (req, res, next) => {
         }
 
         // *** Check if user 
-        const user = await User.findOne({ where: { email } });
+        const user = await User.findOne({ where: { email, verified: true } });
 
         if (!user) {
             const error = createHttpError(404, "Email is not registered");

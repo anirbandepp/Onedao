@@ -1,0 +1,2 @@
+1. Add Cluster
+2. Add pagination for product listing route

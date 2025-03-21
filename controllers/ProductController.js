@@ -1,13 +1,15 @@
-// *** Import Models
-const Product = require("../models").Product;
 // *** Import Third Party Packages
 const createHttpError = require("http-errors");
+
+// *** Import Models
+const Product = require("../models").Product;
+
 // *** Import Product Validation Schema
 const { productSchema } = require("../validation/ProductValidation");
+
 // *** Import Helpers
 const logger = require("../utils/logger");
 
-// req.user_id
 const create = async (req, res, next) => {
     try {
 
