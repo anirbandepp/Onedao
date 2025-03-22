@@ -1,4 +1,5 @@
 // *** Import Third Party Packages
+const { Op } = require('sequelize');
 const createHttpError = require("http-errors");
 
 // *** Import Models
@@ -53,14 +54,62 @@ const create = async (req, res, next) => {
 const viewAll = async (req, res, next) => {
     try {
 
-        // *** Fetch All product created by loggedin User
-        const result = await Product.findAll();
+        let { page, limit, sortBy, order, minPrice, maxPrice, search } = req.query;
 
-        return res.json({
-            success: true,
-            message: "All Product fetched successfully",
-            result
-        })
+        page = parseInt(page) || 1;
+        limit = parseInt(limit) || 10;
+        const offset = (page - 1) * limit;
+        order = order || "DESC"; // ASC or DESC
+
+        // Where clause for filtering
+        let where = {};
+
+        if (minPrice || maxPrice) {
+            where.price = {};
+            if (minPrice) {
+                where.price = {
+                    [Op.gte]: parseFloat(minPrice)
+                }
+            }
+            if (maxPrice) {
+                where.price = {
+                    [Op.lte]: parseFloat(maxPrice)
+                }
+            }
+        }
+
+        if (minPrice && maxPrice) {
+            where = {
+                price: {
+                    [Op.gte]: parseFloat(minPrice),
+                    [Op.lte]: parseFloat(maxPrice)
+                }
+            };
+        }
+
+        if (search) {
+            where.name = { $like: `%${search}%` }; // Case-insensitive search
+        }
+
+        // *** Find Product belongs to logged in user
+        where.user_id = req.user_id;
+
+        // *** Fetch All product created by loggedin User
+        const { count, rows } = await Product.findAndCountAll({
+            where,
+            limit,
+            offset,
+            order: [[sortBy || "createdAt", order.toUpperCase()]],
+        });
+
+        // *** Send Response
+        return res.status(200).json({
+            total: count,
+            per_page: limit,
+            current_page: page,
+            total_pages: Math.ceil(count / limit),
+            data: rows,
+        });
 
     } catch (error) {
         console.log(error);
@@ -173,4 +222,28 @@ const destroy = async (req, res, next) => {
     }
 }
 
-module.exports = { create, viewAll, viewSingle, update, destroy };
+const bulkUpload = async (req, res, next) => {
+    try {
+        for (let i = 0; i < 100; i++) {
+            const insertProduct = new Product({
+                name: `user-${i}`,
+                description: `desc-${i}`,
+                price: 100 * i,
+                qty: 10 * i,
+                user_id: req?.user_id
+            });
+            await insertProduct.save();
+        }
+
+        // *** Send Response
+        return res.status(201).json({
+            success: true,
+            message: 'Bulk Product created successfully'
+        });
+    } catch (error) {
+        console.log(error);
+        next(error);
+    }
+}
+
+module.exports = { create, viewAll, viewSingle, update, destroy, bulkUpload };
