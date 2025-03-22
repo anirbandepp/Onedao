@@ -1,3 +1,5 @@
-1. Add Cluster
+1. Add Cluster #Done
 2. Add pagination for product listing route #Done
-3. sorting, filtering 
+3. sorting, filtering #Done
+4. CORS #Done
+5. Rate Limiter
